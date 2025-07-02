@@ -29,7 +29,7 @@ public class CommandController
     public async Task HandleCommandAsync(Message message)
     {
         var command = message.Text.Split(' ')[0].ToLower();
-        var yearsArray = new List<InputPollOption>() { 
+        var yearsArray = new List<InputPollOption>() {
             new InputPollOption() { Text = "2025"},
             new InputPollOption() { Text = "2024"},
             new InputPollOption() { Text = "2023"},
@@ -154,7 +154,7 @@ public class CommandController
     {
         try
         {
-            var portfolioInfo = await _tinkoffService.GetPortfolioInfoAsync("2054709551"); // Ваш accountId
+            var portfolioInfo = await _tinkoffService.GetPortfolioInfoAsync();
             await _botClient.SendMessage(
                 chatId,
                 $"📊 <b>Ваш портфель:</b>\n{portfolioInfo}",

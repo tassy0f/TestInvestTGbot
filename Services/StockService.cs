@@ -5,18 +5,19 @@ namespace MyTestTelegramBot.Services;
 
 public class StockService
 {
-    private readonly InvestApiClient _client;
+    private readonly TinkoffService _tinkoffService;
 
     public StockService(TinkoffService tinkoffService)
     {
-        _client = tinkoffService.GetClient();
+        _tinkoffService = tinkoffService;
     }
 
     public async Task<Share?> FindStockAsync(string ticker)
     {
         try
         {
-            var response = await _client.Instruments.SharesAsync(new InstrumentsRequest());
+            var client = _tinkoffService.GetClient();
+            var response = await client.Instruments.SharesAsync(new InstrumentsRequest());
             return response.Instruments.FirstOrDefault(i =>
                 i.Ticker.Equals(ticker, StringComparison.OrdinalIgnoreCase));
         }
@@ -31,7 +32,8 @@ public class StockService
     {
         try
         {
-            var response = await _client.MarketData.GetLastPricesAsync(
+            var client = _tinkoffService.GetClient();
+            var response = await client.MarketData.GetLastPricesAsync(
                 new GetLastPricesRequest { Figi = { figi } });
 
             if (response.LastPrices.Count == 0)
