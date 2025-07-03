@@ -35,7 +35,6 @@ class Program
                 services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(telegramSettings.BotToken));
                 services.AddSingleton<TinkoffService>();
                 services.AddSingleton<CurrencyService>();
-                services.AddSingleton<StockService>();
                 services.AddSingleton<CommandController>();
                 services.AddSingleton<BotController>();
 

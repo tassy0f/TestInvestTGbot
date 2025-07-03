@@ -13,11 +13,10 @@ public class BotController
     public BotController(
         ITelegramBotClient botClient,
         TinkoffService tinkoffService,
-        CurrencyService currencyService,
-        StockService stockService)
+        CurrencyService currencyService)
     {
         _botClient = botClient;
-        _commandController = new CommandController(botClient, tinkoffService, currencyService, stockService);
+        _commandController = new CommandController(botClient, tinkoffService, currencyService);
     }
 
     public async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken ct)

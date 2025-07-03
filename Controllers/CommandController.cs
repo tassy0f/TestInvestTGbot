@@ -11,25 +11,23 @@ public class CommandController
     private readonly ITelegramBotClient _botClient;
     private readonly TinkoffService _tinkoffService;
     private readonly CurrencyService _currencyService;
-    private readonly StockService _stockService;
     private readonly Dictionary<long, string> _awaitingTicker = new();
 
     public CommandController(
         ITelegramBotClient botClient,
         TinkoffService tinkoffService,
-        CurrencyService currencyService,
-        StockService stockService)
+        CurrencyService currencyService)
     {
         _botClient = botClient;
         _tinkoffService = tinkoffService;
         _currencyService = currencyService;
-        _stockService = stockService;
     }
 
     public async Task HandleCommandAsync(Message message)
     {
         var command = message.Text.Split(' ')[0].ToLower();
         var yearsArray = new List<InputPollOption>() {
+            new InputPollOption() { Text = "Информация за 10 лет"},
             new InputPollOption() { Text = "2025"},
             new InputPollOption() { Text = "2024"},
             new InputPollOption() { Text = "2023"},
@@ -58,6 +56,9 @@ public class CommandController
             case "/portfolio":
                 await SendPortfolioInfo(message.Chat.Id);
                 break;
+            case "/favorites":
+                await SendFavoritesInfo(message.Chat.Id);
+                break;
             case "/searchbyticket":
                 await RequestStockTicker(message.Chat.Id);
                 break;
@@ -79,20 +80,68 @@ public class CommandController
         {
             int year = pollAnswer.OptionIds[0] switch
             {
-                0 => 2025,
-                1 => 2024,
-                2 => 2023,
-                3 => 2022,
-                4 => 2021,
-                5 => 2020,
+                0 => 1,
+                1 => 2025,
+                2 => 2024,
+                3 => 2023,
+                4 => 2022,
+                5 => 2021,
+                6 => 2020,
                 _ => DateTime.Now.Year
             };
+            if (year == 1)
+            {
+                try
+                {
+                    var currentYear = DateTime.Now.Year;
+                    var rates = new List<(int Year, decimal Rate)>();
 
-            var averageRate = await _currencyService.GetAverageUsdRateForYearAsync(year);
-            await _botClient.SendMessage(
-                pollAnswer.User.Id,
-                $"📊 Средний курс USD за {year} год: {averageRate:F2} RUB",
-                parseMode: ParseMode.Html);
+                    // Получаем данные за последние 10 лет асинхронно
+                    var tasks = Enumerable.Range(currentYear - 9, 10)
+                        .Select(async year =>
+                        {
+                            var rate = await _currencyService.GetAverageUsdRateForYearAsync(year);
+                            return (Year: year, Rate: rate);
+                        })
+                        .ToList();
+
+                    await Task.WhenAll(tasks);
+                    rates = tasks.Select(t => t.Result).ToList();
+
+                    // Формируем красивую таблицу
+                    var response = "📊 <b>Средние курсы USD за 10 лет</b>\n\n";
+                    response += "<pre>";
+                    response += "| Год   | Курс (RUB)  |\n";
+                    response += "|-------|-------------|\n";
+
+                    foreach (var item in rates.OrderByDescending(x => x.Year))
+                    {
+                        response += $"| {item.Year} | {item.Rate,10:N2} |\n";
+                    }
+
+                    response += "</pre>";
+                    response += "\n<i>Данные предоставлены ЦБ РФ</i>";
+
+                    await _botClient.SendMessage(
+                        pollAnswer.User.Id,
+                        response,
+                        parseMode: ParseMode.Html);
+                }
+                catch (Exception ex)
+                {
+                    await _botClient.SendMessage(
+                        pollAnswer.User.Id,
+                        $"⚠️ Ошибка при получении данных: {ex.Message}");
+                }
+            } 
+            else
+            {
+                var averageRate = await _currencyService.GetAverageUsdRateForYearAsync(year);
+                await _botClient.SendMessage(
+                    pollAnswer.User.Id,
+                    $"📊 Средний курс USD за {year} год: {averageRate:F2} RUB",
+                    parseMode: ParseMode.Html);
+            }
         }
     }
 
@@ -110,6 +159,7 @@ public class CommandController
 
             <i>⚙️ Акции:</i>
             /portfolio — Портфель
+            /favorites — Избранные активы
             /searchbyticket — Поиск акции
             """,
             parseMode: ParseMode.Html);
@@ -123,14 +173,14 @@ public class CommandController
 
     private async Task ProcessStockRequest(long chatId, string ticker)
     {
-        var stock = await _stockService.FindStockAsync(ticker);
+        var stock = await _tinkoffService.FindStockAsync(ticker);
         if (stock == null)
         {
             await _botClient.SendMessage(chatId, $"❌ Акция '{ticker}' не найдена");
             return;
         }
 
-        var price = await _stockService.GetStockPriceAsync(stock.Figi);
+        var price = await _tinkoffService.GetStockPriceAsync(stock.Figi);
         var currency = stock.Currency == "rub" ? "RUB" : stock.Currency.ToUpper();
 
         await _botClient.SendMessage(
@@ -165,6 +215,25 @@ public class CommandController
             await _botClient.SendMessage(
                 chatId,
                 $"⚠️ Ошибка при получении портфеля: {ex.Message}");
+        }
+    }
+
+    private async Task SendFavoritesInfo(long chatId)
+    {
+        try
+        {
+            var (favoritesInfo, entities) = await _tinkoffService.GetFavoriteInstrumentsInfoAsync();
+            await _botClient.SendMessage(
+                chatId,
+                favoritesInfo,
+                parseMode: ParseMode.Html,
+                entities: entities);
+        }
+        catch (Exception ex)
+        {
+            await _botClient.SendMessage(
+                chatId,
+                $"⚠️ Ошибка при получении избранных активов: {ex.Message}");
         }
     }
 }
