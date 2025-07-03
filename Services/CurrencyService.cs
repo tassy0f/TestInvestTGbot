@@ -13,20 +13,33 @@ public class CurrencyService
         _httpClient = new HttpClient();
     }
 
-    public async Task<string> GetValuteRateAsync(string valuteCode)
+    public async Task<Currency?> GetValuteRateAsync(string valuteCode)
     {
         try
         {
             var response = await _httpClient.GetFromJsonAsync<CbrResponse>(
                 "https://www.cbr-xml-daily.ru/daily_json.js");
-
             if (response?.Valute.TryGetValue(valuteCode, out var currency) == true)
             {
-                return $"<b>🏦 Курс {currency.Name}</b>\n" +
-                       $"➡️ <b>{currency.Nominal} {valuteCode} = {currency.Value} RUB</b>\n" +
-                       $"📅 Обновлено: {DateTime.Now:dd.MM.yyyy HH:mm}";
+                return currency;
             }
-            return "❌ Данные о валюте не найдены";
+
+            throw new Exception();
+        }
+        catch (Exception ex)
+        {
+            throw new Exception();
+        }
+    }
+
+    public async Task<string> GetValuteRateFormatAsync(string valuteCode)
+    {
+        try
+        {
+            var currency = await GetValuteRateAsync(valuteCode);
+            return $"<b>🏦 Курс {currency?.Name}</b>\n" +
+                    $"➡️ <b>{currency?.Nominal} {valuteCode} = {currency?.Value} RUB</b>\n" +
+                    $"📅 Обновлено: {DateTime.Now:dd.MM.yyyy HH:mm}";
         }
         catch (Exception ex)
         {

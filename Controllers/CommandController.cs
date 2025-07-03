@@ -147,6 +147,30 @@ public class CommandController
 
     private async Task SendStartMessage(long chatId)
     {
+        var dollarCurrency = await _currencyService.GetValuteRateAsync("USD");
+        var euroCurrency = await _currencyService.GetValuteRateAsync("EUR");
+        var keyboard = new ReplyKeyboardMarkup(new[]
+        {
+            new[] { new KeyboardButton($"📊 Курс доллара: {dollarCurrency?.Value} ₽") },
+            new[] { new KeyboardButton($"📊 Курс евро: {euroCurrency?.Value} ₽") },
+            new[] { new KeyboardButton("🔒 Регистрация (недоступно)") }
+        })
+        {
+            ResizeKeyboard = true
+        };
+
+        var inlineKeyboard = new InlineKeyboardMarkup(new[]
+        {
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData($"💵 Доллар: {dollarCurrency?.Value} ₽", "ignore_dollar"),
+                InlineKeyboardButton.WithCallbackData($"💶 Евро: {euroCurrency?.Value} ₽", "ignore_euro")
+            },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("🔒 Регистрация", "register_disabled")
+            }
+        });
         await _botClient.SendMessage(
             chatId,
             """
@@ -162,12 +186,13 @@ public class CommandController
             /favorites — Избранные активы
             /searchbyticket — Поиск акции
             """,
-            parseMode: ParseMode.Html);
+            parseMode: ParseMode.Html,
+            replyMarkup: keyboard);
     }
 
     private async Task SendCurrencyRate(long chatId, string currencyCode)
     {
-        var rate = await _currencyService.GetValuteRateAsync(currencyCode);
+        var rate = await _currencyService.GetValuteRateFormatAsync(currencyCode);
         await _botClient.SendMessage(chatId, rate, parseMode: ParseMode.Html);
     }
 
