@@ -1,12 +1,9 @@
-﻿using Google.Api;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using MyTestTelegramBot.Models;
 using MyTestTelegramBot.Models.DBContext;
 using MyTestTelegramBot.Services;
 using OfficeOpenXml;
-using System.ComponentModel;
-using System.IO;
-using System.Linq;
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using Telegram.Bot;
@@ -73,6 +70,9 @@ public class CommandController
             case "/generatecostform":
                 await GenerateCostForm(message.Chat.Id, message.Chat.Username);
                 break;
+            case "/addsteamitem":
+                await AddSteamItem(message.Chat.Id, message.Chat.Username);
+                break;
             case "/avgyearusdcourseforthisyear":
                 await _botClient.SendPoll(
                     message.Chat.Id,
@@ -94,10 +94,16 @@ public class CommandController
 
     public async Task HandleTextMessageAsync(Message message)
     {
-        if (_awaitingTicker.TryGetValue(message.Chat.Id, out var action) && action == "stock")
+        if (_awaitingTicker.TryGetValue(message.Chat.Id, out var stockAction) && stockAction == "stock")
         {
             _awaitingTicker.Remove(message.Chat.Id);
             await ProcessStockRequest(message.Chat.Id, message.Text.Trim().ToUpper());
+        }
+
+        if (_awaitingTicker.TryGetValue(message.Chat.Id, out var steamAction) && steamAction == "steamitem")
+        {
+            _awaitingTicker.Remove(message.Chat.Id);
+            await ProcessSteamRequest(message.Chat.Id, message.Text, message.Chat.Username);
         }
     }
 
@@ -287,6 +293,90 @@ public class CommandController
 
     #region Steam
 
+    private async Task AddSteamItem(long id, string? username)
+    {
+        await _botClient.SendMessage(
+            chatId: id,
+            text: "Скопируйте сообщение ниже и отправтье боту заполненый шаблон (Название строго на английском):"
+        );
+
+        await _botClient.SendMessage(
+            chatId: id,
+            text: "Название:               \n"+
+                  "Стоимость за единицу:   \n"+
+                  "Количество:             \n"+
+                  "Общая стоимость:        \n"
+        );
+
+        _awaitingTicker[id] = "steamitem";
+    }
+
+    private async Task ProcessSteamRequest(long id, string? text, string username)
+    {
+        var user = await _db.Users
+        .Include(u => u.SteamHistory)
+        .FirstOrDefaultAsync(u => u.Username == username);
+
+        if (user == null)
+        {
+            var newUser = new User()
+            {
+                ChatId = id,
+                Username = username,
+            };
+
+            _db.Users.Add(newUser);
+            await _db.SaveChangesAsync();
+
+            var userOneMoreTime = await _db.Users // TODO: вот это все хуйня, надо переделать
+        .Include(u => u.SteamHistory)
+        .FirstOrDefaultAsync(u => u.Username == username);
+
+            // TODO: Добавить проверку на ошибку
+            var newSteamItem = ParseFromMessage(text); // TODO: вынести это отсюда
+            newSteamItem.UserId = userOneMoreTime.Id;
+            _db.SteamHistoryData.Add(newSteamItem);
+            await _db.SaveChangesAsync();
+            _awaitingTicker.Remove(id);
+        }
+        else
+        {
+            var newSteamItem = ParseFromMessage(text);
+            newSteamItem.UserId = user.Id;
+            _db.SteamHistoryData.Add(newSteamItem); // TODO: в отдельный переиспользуемый метод
+            await _db.SaveChangesAsync();
+            _awaitingTicker.Remove(id);
+        }
+    }
+
+    private SteamHistoryDataItem ParseFromMessage(string message)
+    {
+        var item = new SteamHistoryDataItem();
+        var culture = CultureInfo.InvariantCulture;
+
+        var nameMatch = Regex.Match(message, @"Название:\s*(.+)");
+        var pricePerUnitMatch = Regex.Match(message, @"Стоимость за единицу:\s*([\d.,]+)");
+        var countMatch = Regex.Match(message, @"Количество:\s*(\d+)");
+        var totalPriceMatch = Regex.Match(message, @"Общая стоимость:\s*([\d.,]+)");
+
+        if (nameMatch.Success)
+            item.Name = nameMatch.Groups[1].Value.Trim();
+
+        if (pricePerUnitMatch.Success &&
+            decimal.TryParse(pricePerUnitMatch.Groups[1].Value.Replace(',', '.'), NumberStyles.Any, culture, out var pricePerUnit))
+            item.PricePerUnit = pricePerUnit;
+
+        if (countMatch.Success &&
+            int.TryParse(countMatch.Groups[1].Value, out var count))
+            item.Count = count;
+
+        if (totalPriceMatch.Success &&
+            decimal.TryParse(totalPriceMatch.Groups[1].Value.Replace(',', '.'), NumberStyles.Any, culture, out var total))
+            item.PriceForAll = total;
+
+        return item;
+    }
+
     private async Task GenerateCostForm(long id, string? username)
     {
         var user = await _db.Users
@@ -394,10 +484,12 @@ public class CommandController
 
             <i>Сформировать таблицу стоимости:</i>
             /generateCostForm
+
+            <i>Загрузить одну единицу инвентаря:</i>
+            /addsteamitem
             """,
             parseMode: ParseMode.Html);
     }
-
 
     #endregion
 
