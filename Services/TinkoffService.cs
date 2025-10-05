@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Options;
 using MyTestTelegramBot.Models.Settings;
+using System.Text;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Tinkoff.InvestApi;
@@ -31,7 +32,7 @@ public class TinkoffService
             if (portfolio.Positions.Count == 0)
                 return "Портфель пуст";
 
-            var result = new System.Text.StringBuilder();
+            var result = new StringBuilder();
             foreach (var position in portfolio.Positions)
             {
                 result.AppendLine($"▪️ {position.Figi}: {position.Quantity} шт.");

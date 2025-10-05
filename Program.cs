@@ -6,6 +6,8 @@ using MyTestTelegramBot.Services;
 using Telegram.Bot;
 using Telegram.Bot.Polling;
 using MyTestTelegramBot.Models.Settings;
+using Microsoft.EntityFrameworkCore;
+using MyTestTelegramBot.Models.DBContext;
 
 namespace MyTestTelegramBot;
 
@@ -17,7 +19,7 @@ class Program
             .ConfigureAppConfiguration((hostContext, config) =>
             {
                 config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-                config.AddJsonFile($"appsettings.Development.json",
+                config.AddJsonFile($"appsettings.Development.json", // Для запуска локально создай такой файл, перенеси настройки из appsettings.json, задай там свои параметры
                     optional: true, reloadOnChange: true);
                 config.AddEnvironmentVariables();
             })
@@ -28,17 +30,25 @@ class Program
                     builder.Configuration.GetSection("TelegramSettings"));
                 services.Configure<TinkoffApiSettings>(
                     builder.Configuration.GetSection("TinkoffApiSettings"));
+                services.Configure<PostgressSettings>(
+                    builder.Configuration.GetSection("PostgressSettings"));
+                
+
                 var telegramSettings = builder.Configuration.GetSection("TelegramSettings").Get<TelegramSettings>();
                 var tinkoffApiSettings = builder.Configuration.GetSection("TinkoffApiSettings").Get<TinkoffApiSettings>();
+                var postgressSettings = builder.Configuration.GetSection("PostgressSettings").Get<PostgressSettings>();
+
+                services.AddDbContext<AppDbContext>(options =>
+                    options.UseNpgsql($"Host={postgressSettings.Host};Database={postgressSettings.Database};Username={postgressSettings.Username};Password={postgressSettings.Password}"));
 
                 // Регистрация сервисов
+                services.AddTransient<SteamService>();
                 services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(telegramSettings.BotToken));
-                services.AddSingleton<TinkoffService>();
-                services.AddSingleton<CurrencyService>();
+                services.AddTransient<TinkoffService>();
+                services.AddTransient<CurrencyService>();
                 services.AddSingleton<CommandController>();
                 services.AddSingleton<BotController>();
 
-                // Регистрация хостед-сервиса для запуска бота
                 services.AddHostedService<BotHostedService>();
             })
             .Build();

@@ -1,6 +1,7 @@
 ﻿using System.Net.Http.Json;
 using HtmlAgilityPack;
 using MyTestTelegramBot.Models;
+using MyTestTelegramBot.Models.Errors;
 
 namespace MyTestTelegramBot.Services;
 
@@ -24,11 +25,47 @@ public class CurrencyService
                 return currency;
             }
 
-            throw new Exception();
+            throw new ValuteException()
+            {
+                Message = $"Проблема с доступом к валюте: {valuteCode}"
+            };
         }
         catch (Exception ex)
         {
-            throw new Exception();
+            Console.WriteLine(ex.Message);
+            return new Currency()
+            {
+                CharCode = valuteCode,
+                Value = 0
+            };
+        }
+    }
+
+    public async Task<List<Currency>?> GetValuteRateListAsync(string[] valuteArr)
+    {
+        var currencyList = new List<Currency>();
+        try
+        {
+            var response = await _httpClient.GetFromJsonAsync<CbrResponse>(
+                "https://www.cbr-xml-daily.ru/daily_json.js");
+            foreach (var valute in valuteArr) 
+            {
+                if (response?.Valute.TryGetValue(valute, out var currency) == true)
+                {
+                    currencyList.Add(currency);
+                }
+            }
+            return currencyList;
+
+            throw new ValuteException()
+            {
+                Message = $"Проблема с доступом к валютам"
+            };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+            return currencyList;
         }
     }
 
