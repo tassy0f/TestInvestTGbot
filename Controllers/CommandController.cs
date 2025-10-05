@@ -20,6 +20,7 @@ public class CommandController
     private readonly TinkoffService _tinkoffService;
     private readonly CurrencyService _currencyService;
     private readonly SteamService _steam;
+    private readonly NotionService _notion;
     private readonly AppDbContext _db;
     private readonly Dictionary<long, string> _awaitingTicker = new();
     private static readonly Dictionary<long, string> _userStates = new();
@@ -29,12 +30,14 @@ public class CommandController
         TinkoffService tinkoffService,
         CurrencyService currencyService,
         SteamService steam,
+        NotionService notion,
         AppDbContext db)
     {
         _botClient = botClient;
         _tinkoffService = tinkoffService;
         _currencyService = currencyService;
         _steam = steam;
+        _notion = notion;
         _db = db;
     }
 
@@ -72,6 +75,9 @@ public class CommandController
                 break;
             case "/addsteamitem":
                 await AddSteamItem(message.Chat.Id, message.Chat.Username);
+                break;
+            case "/addnotiontask":
+                await AddNotionTask(message.Chat.Id);
                 break;
             case "/avgyearusdcourseforthisyear":
                 await _botClient.SendPoll(
@@ -282,6 +288,9 @@ public class CommandController
             <i>💵 Steam:</i>
             /steamMenu
 
+            <i>💵 Notion:</i>
+            /addnotiontask
+
             <i>⚙️ Акции:</i>
             /portfolio — Портфель
             /favorites — Избранные активы
@@ -290,6 +299,24 @@ public class CommandController
             parseMode: ParseMode.Html,
             replyMarkup: keyboard);
     }
+
+    #region Notion
+
+    private async Task AddNotionTask(long chatId)
+    {
+        var dbId = "9a0ebbb0bbe340cc8848773bfa61dfca"; // https://www.notion.so/9a0ebbb0bbe340cc8848773bfa61dfca?v=d6a27963f83f4d83b158a53bc1a9fdbe 
+
+        await _notion.AddTaskAsync(
+            dbId,
+            "Сделать ревью PR",
+            DateTime.Today.AddDays(1),
+            "Не забыть проверить юнит-тесты"
+        );
+
+        await _botClient.SendMessage(chatId, "✅ Задача добавлена в Notion!");
+    }
+
+    #endregion
 
     #region Steam
 
