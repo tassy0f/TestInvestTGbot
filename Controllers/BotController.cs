@@ -16,10 +16,11 @@ public class BotController
         TinkoffService tinkoffService,
         CurrencyService currencyService,
         SteamService steamService,
+        NotionService notionService,
         AppDbContext db)
     {
         _botClient = botClient;
-        _commandController = new CommandController(botClient, tinkoffService, currencyService, steamService, db);
+        _commandController = new CommandController(botClient, tinkoffService, currencyService, steamService, notionService, db);
     }
 
     public async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken ct)

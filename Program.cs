@@ -32,17 +32,21 @@ class Program
                     builder.Configuration.GetSection("TinkoffApiSettings"));
                 services.Configure<PostgressSettings>(
                     builder.Configuration.GetSection("PostgressSettings"));
-                
+                services.Configure<NotionSettings>(
+                    builder.Configuration.GetSection("NotionSettings"));
+
 
                 var telegramSettings = builder.Configuration.GetSection("TelegramSettings").Get<TelegramSettings>();
                 var tinkoffApiSettings = builder.Configuration.GetSection("TinkoffApiSettings").Get<TinkoffApiSettings>();
                 var postgressSettings = builder.Configuration.GetSection("PostgressSettings").Get<PostgressSettings>();
+                var notionSettings = builder.Configuration.GetSection("NotionSettings").Get<NotionSettings>();
 
                 services.AddDbContext<AppDbContext>(options =>
                     options.UseNpgsql($"Host={postgressSettings.Host};Database={postgressSettings.Database};Username={postgressSettings.Username};Password={postgressSettings.Password}"));
 
                 // Регистрация сервисов
                 services.AddTransient<SteamService>();
+                services.AddSingleton(sp => new NotionService(notionSettings.AuthToken));
                 services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(telegramSettings.BotToken));
                 services.AddTransient<TinkoffService>();
                 services.AddTransient<CurrencyService>();
