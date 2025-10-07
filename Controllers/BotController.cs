@@ -49,9 +49,13 @@ public class BotController
                 {
                     await _botClient.SendMessage(
                         message.Chat.Id,
-                        text: "Пожалйста, загрузить Excel (.xlsx) файл."
+                        text: "Пожалуйста, загрузите Excel (.xlsx) файл."
                         );
                 }
+            }
+            else if (message.Voice is { } voice)
+            {
+                await _commandController.HandleVoiceMessageAsync(message);
             }
         }
         else if (update.PollAnswer is { } pollAnswer)

@@ -4,7 +4,9 @@ using MyTestTelegramBot.Models.DBContext;
 using MyTestTelegramBot.Services;
 using OfficeOpenXml;
 using System.Globalization;
+using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -111,6 +113,43 @@ public class CommandController
             _awaitingTicker.Remove(message.Chat.Id);
             await ProcessSteamRequest(message.Chat.Id, message.Text, message.Chat.Username);
         }
+    }
+
+    public async Task HandleVoiceMessageAsync(Message message)
+    {
+        if (!_awaitingTicker.TryGetValue(message.Chat.Id, out var notionVoiceAction) && notionVoiceAction == "notionVoice")
+        {
+            return;
+        }
+        var voice = message.Voice;
+        var chatId = message.Chat.Id;
+
+        var file = await _botClient.GetFile(voice.FileId);
+        var filePath = Path.Combine("voice", $"{voice.FileUniqueId}.ogg");
+
+        Directory.CreateDirectory("voice");
+
+        using (var fileStream = new FileStream(filePath, FileMode.Create))
+        {
+            await _botClient.DownloadFile(file.FilePath, fileStream);
+        }
+
+        await _botClient.SendMessage(chatId, "Голосовое сообщение получено. Распознаю текст...");
+
+        var recognizedText = await TranscribeAudioAsync(filePath);
+
+        if (string.IsNullOrWhiteSpace(recognizedText))
+        {
+            await _botClient.SendMessage(chatId, "❌ Не удалось распознать речь.");
+        }
+        else
+        {
+            await _botClient.SendMessage(chatId, $"Распознанный текст:\n{recognizedText}");
+        }
+
+        Console.WriteLine(recognizedText);
+
+        // TODO: добавить запись в Notion или создание задачи
     }
 
     public async Task HandlePollAnswerAsync(PollAnswer pollAnswer)
@@ -304,8 +343,9 @@ public class CommandController
 
     private async Task AddNotionTask(long chatId)
     {
+        _awaitingTicker[chatId] = "notionVoice";
         var dbId = "9a0ebbb0bbe340cc8848773bfa61dfca"; // https://www.notion.so/9a0ebbb0bbe340cc8848773bfa61dfca?v=d6a27963f83f4d83b158a53bc1a9fdbe 
-
+        // Добавить вот тут на выбор две кнопки в которых будет храниться ДбАйди заметки - айдишник, ежедневник - айдищник
         await _notion.AddTaskAsync(
             dbId,
             "Сделать ревью PR",
@@ -314,6 +354,28 @@ public class CommandController
         );
 
         await _botClient.SendMessage(chatId, "✅ Задача добавлена в Notion!");
+    }
+
+    private async Task<string> TranscribeAudioAsync(string audioFilePath)
+    {
+        using var httpClient = new HttpClient();
+        using var form = new MultipartFormDataContent();
+
+        using var fileStream = File.OpenRead(audioFilePath);
+        form.Add(new StreamContent(fileStream), "audio_file", Path.GetFileName(audioFilePath));
+
+        var url = "http://localhost:9000/asr?task=transcribe&language=ru";
+
+        var response = await httpClient.PostAsync(url, form);
+        if (!response.IsSuccessStatusCode)
+        {
+            Console.WriteLine($"Whisper error: {response.StatusCode}");
+            return string.Empty;
+        }
+
+        var result = await response.Content.ReadAsStringAsync();
+
+        return result ?? string.Empty;
     }
 
     #endregion
@@ -600,10 +662,10 @@ public class CommandController
         }
     }
 
-
-    #endregion
-
-    #endregion
-
     
+    #endregion
+
+    #endregion
+
+
 }

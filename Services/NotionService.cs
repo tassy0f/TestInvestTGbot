@@ -1,7 +1,7 @@
 ﻿using Notion.Client;
 using DateTime = System.DateTime;
 
-namespace MyTestTelegramBot;
+namespace MyTestTelegramBot.Services;
 
 public class NotionService
 {
@@ -28,7 +28,7 @@ public class NotionService
             },
             ["Date"] = new DatePropertyValue
             {
-                Date = new Notion.Client.Date() { Start = date, End = date },
+                Date = new Date() { Start = date, End = date },
             }
         };
 
