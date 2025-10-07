@@ -10,6 +10,7 @@
     <ItemGroup>
         <PackageReference Include="EPPlus" Version="8.2.0" />
         <PackageReference Include="HtmlAgilityPack" Version="1.12.1" />
+        <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.20" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.20">
           <PrivateAssets>all</PrivateAssets>
@@ -31,6 +32,9 @@
         <None Update="appsettings.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
+    </ItemGroup>
+    <ItemGroup>
+      <Folder Include="Core\Common\Middlewares\" />
     </ItemGroup>
 
 </Project>

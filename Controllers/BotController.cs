@@ -1,5 +1,6 @@
-﻿using MyTestTelegramBot.Models.DBContext;
-using MyTestTelegramBot.Services;
+﻿using MyTestTelegramBot.Core.Interfaces;
+using MyTestTelegramBot.Core.Services;
+using MyTestTelegramBot.Data.Repository;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -13,9 +14,9 @@ public class BotController
 
     public BotController(
         ITelegramBotClient botClient,
-        TinkoffService tinkoffService,
-        CurrencyService currencyService,
-        SteamService steamService,
+        ITinkoffService tinkoffService,
+        ICurrencyService currencyService,
+        ISteamService steamService,
         NotionService notionService,
         AppDbContext db)
     {
@@ -43,7 +44,7 @@ public class BotController
                 Console.WriteLine(document.FileName);
                 if (document.FileName.EndsWith(".xlsx"))
                 {
-                    await _commandController.HandleXlsxDocumentAsync(message);
+                    //await _commandController.HandleXlsxDocumentAsync(message);
                 }
                 else
                 {
@@ -53,20 +54,10 @@ public class BotController
                         );
                 }
             }
-            else if (message.Voice is { } voice)
-            {
-                await _commandController.HandleVoiceMessageAsync(message);
-            }
         }
         else if (update.PollAnswer is { } pollAnswer)
         {
             await _commandController.HandlePollAnswerAsync(pollAnswer);
         }
-    }
-
-    public Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken ct)
-    {
-        Console.WriteLine($"Ошибка: {exception.Message}");
-        return Task.CompletedTask;
     }
 }
