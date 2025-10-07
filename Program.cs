@@ -2,12 +2,16 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
 using MyTestTelegramBot.Controllers;
-using MyTestTelegramBot.Services;
 using Telegram.Bot;
-using Telegram.Bot.Polling;
-using MyTestTelegramBot.Models.Settings;
 using Microsoft.EntityFrameworkCore;
-using MyTestTelegramBot.Models.DBContext;
+using MyTestTelegramBot.Core.Models.Settings;
+using MyTestTelegramBot.Data.Repository;
+using MyTestTelegramBot.Core.Services;
+using MyTestTelegramBot.Core.Interfaces;
+using MyTestTelegramBot.Handlers;
+using Google.Api;
+using MyTestTelegramBot.Commands;
+using System.Reflection;
 
 namespace MyTestTelegramBot;
 
@@ -44,14 +48,25 @@ class Program
                 services.AddDbContext<AppDbContext>(options =>
                     options.UseNpgsql($"Host={postgressSettings.Host};Database={postgressSettings.Database};Username={postgressSettings.Username};Password={postgressSettings.Password}"));
 
+                var commandTypes = Assembly.GetExecutingAssembly()
+                    .GetTypes()
+                    .Where(t => t.IsSubclassOf(typeof(BaseCommand)) && !t.IsAbstract);
+
+                foreach (var type in commandTypes)
+                {
+                    services.AddScoped(typeof(BaseCommand), type);
+                }
+
                 // Регистрация сервисов
-                services.AddTransient<SteamService>();
-                services.AddSingleton(sp => new NotionService(notionSettings.AuthToken));
+                services.AddScoped<ISteamService, SteamService>();
+                services.AddScoped(sp => new NotionService(notionSettings.AuthToken));
                 services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(telegramSettings.BotToken));
-                services.AddTransient<TinkoffService>();
-                services.AddTransient<CurrencyService>();
-                services.AddSingleton<CommandController>();
-                services.AddSingleton<BotController>();
+                services.AddScoped<ITinkoffService, TinkoffService>();
+                services.AddScoped<ICurrencyService, CurrencyService>();
+                services.AddScoped<ICommandService, CommandService>();
+                services.AddScoped<IMessageHandler, MessageHandler>();
+                services.AddScoped<IUserStateService, UserStateService>();
+                services.AddScoped<UpdateHandler>();
 
                 services.AddHostedService<BotHostedService>();
             })

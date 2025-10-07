@@ -2,20 +2,21 @@
 using Telegram.Bot;
 using Telegram.Bot.Polling;
 using MyTestTelegramBot.Controllers;
+using MyTestTelegramBot.Handlers;
 
 namespace MyTestTelegramBot;
 
 public class BotHostedService : IHostedService
 {
     private readonly ITelegramBotClient _botClient;
-    private readonly BotController _botController;
+    private readonly UpdateHandler _updateHandler;
     private readonly CancellationTokenSource _cts;
 
-    public BotHostedService(ITelegramBotClient botClient, BotController botController)
+    public BotHostedService(ITelegramBotClient botClient, UpdateHandler updateHandler)
     {
         _botClient = botClient;
-        _botController = botController;
         _cts = new CancellationTokenSource();
+        _updateHandler = updateHandler;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -23,8 +24,8 @@ public class BotHostedService : IHostedService
         await _botClient.DeleteWebhook(cancellationToken: _cts.Token);
 
         _botClient.StartReceiving(
-            updateHandler: _botController.HandleUpdateAsync,
-            errorHandler: _botController.HandleErrorAsync,
+            updateHandler: _updateHandler.HandleUpdateAsync,
+            errorHandler: _updateHandler.HandleErrorAsync,
             receiverOptions: new ReceiverOptions(),
             cancellationToken: _cts.Token
         );
