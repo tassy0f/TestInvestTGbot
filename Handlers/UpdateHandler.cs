@@ -36,7 +36,7 @@ namespace MyTestTelegramBot.Handlers
                 {
                     UpdateType.Message => _messageHandler.HandleMessageAsync(botClient, update.Message!, cancellationToken),
                     UpdateType.CallbackQuery => HandleCallbackQueryAsync(botClient, update.CallbackQuery!, cancellationToken),
-                    _ => Task.CompletedTask
+                    _ => Task.CompletedTask // add poll
                 };
 
                 await handler;
@@ -58,6 +58,9 @@ namespace MyTestTelegramBot.Handlers
                 "notion_add_task_command" => "/notionaddtask",
                 "notion_get_marks_command" => "/notiongetmarks",
                 "notion_get_week_tasks_command" => "/notiongetweektasks",
+                "notion_add_task_good_result_command" => "/notionaddtaskgood",
+                "notion_add_task_bad_result_command" => "/notionaddtaskbad",
+                "notion_add_task_bad_result_but_save_command" => "/notionaddtaskbadbutsave",
 
                 //Steam commands
                 "steam_command" => "/steammenu",

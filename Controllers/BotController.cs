@@ -3,7 +3,6 @@ using MyTestTelegramBot.Core.Services;
 using MyTestTelegramBot.Data.Repository;
 using Telegram.Bot;
 using Telegram.Bot.Types;
-using Telegram.Bot.Types.Enums;
 
 namespace MyTestTelegramBot.Controllers;
 

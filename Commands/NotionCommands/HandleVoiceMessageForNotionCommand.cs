@@ -1,23 +1,21 @@
 ﻿using MyTestTelegramBot.Core.Common.States;
 using MyTestTelegramBot.Core.Interfaces;
-using MyTestTelegramBot.Data.Entities;
-using MyTestTelegramBot.Data.Repository;
 using Telegram.Bot.Types;
 using Telegram.Bot;
+using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace MyTestTelegramBot.Commands.NotionCommands;
 
 public class HandleVoiceMessageForNotionCommand : BaseCommand
 {
     private readonly IUserStateService _stateService;
-    private readonly ISteamService _steamService;
-    private readonly AppDbContext _db;
+    private readonly INotionService _notionService;
 
-    public HandleVoiceMessageForNotionCommand(IUserStateService stateService, ISteamService steamService, AppDbContext db)
+    public HandleVoiceMessageForNotionCommand(IUserStateService stateService, INotionService notionService)
     {
         _stateService = stateService;
-        _steamService = steamService;
-        _db = db;
+        _notionService = notionService;
     }
 
     public override string Name => "/handlevoicemessagefornotion";
@@ -55,9 +53,36 @@ public class HandleVoiceMessageForNotionCommand : BaseCommand
 
         Console.WriteLine(recognizedText);
 
-        // TODO: добавить запись в Notion или создание задачи
+        var notionModelTask = _notionService.ParseStringToNotionModel(recognizedText);
 
-        await _stateService.ClearUserStateAsync(message.From.Id);
+        var askText = $"""
+            <b>Проверьте, верна ли запись?</b>
+            Заголовок: {notionModelTask.Title},
+            Описание: {notionModelTask.Description},
+            Дата: {notionModelTask.Date}.
+           """;
+
+        var keyboard = new InlineKeyboardMarkup(new[]
+        {
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("Верно", "notion_add_task_good_result_command"),
+                InlineKeyboardButton.WithCallbackData("Неверно", "notion_add_task_bad_result_command")
+            },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("Неверно, но сохранить", "notion_add_task_bad_result_but_save_command")
+            }
+        });
+
+        await botClient.SendMessage(
+            chatId: chatId,
+            text: askText,
+            replyMarkup: keyboard,
+            parseMode: ParseMode.Html,
+            cancellationToken: cancellationToken);
+
+        await _stateService.SetUserStateAsync(chatId, StateEnum.WaitingUserDesignByNotionModel);
     }
 
     private async Task<string> TranscribeAudioAsync(string audioFilePath) // TODO: Вынести это в WhisperService

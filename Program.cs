@@ -59,7 +59,7 @@ class Program
 
                 // Регистрация сервисов
                 services.AddScoped<ISteamService, SteamService>();
-                services.AddScoped(sp => new NotionService(notionSettings.AuthToken));
+                services.AddScoped<INotionService, NotionService>();
                 services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(telegramSettings.BotToken));
                 services.AddScoped<ITinkoffService, TinkoffService>();
                 services.AddScoped<ICurrencyService, CurrencyService>();
