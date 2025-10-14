@@ -12,6 +12,7 @@ using MyTestTelegramBot.Handlers;
 using Google.Api;
 using MyTestTelegramBot.Commands;
 using System.Reflection;
+using StackExchange.Redis;
 
 namespace MyTestTelegramBot;
 
@@ -38,12 +39,15 @@ class Program
                     builder.Configuration.GetSection("PostgressSettings"));
                 services.Configure<NotionSettings>(
                     builder.Configuration.GetSection("NotionSettings"));
+                services.Configure<RedisSettings>(
+                    builder.Configuration.GetSection("RedisSettings"));
 
 
                 var telegramSettings = builder.Configuration.GetSection("TelegramSettings").Get<TelegramSettings>();
                 var tinkoffApiSettings = builder.Configuration.GetSection("TinkoffApiSettings").Get<TinkoffApiSettings>();
                 var postgressSettings = builder.Configuration.GetSection("PostgressSettings").Get<PostgressSettings>();
                 var notionSettings = builder.Configuration.GetSection("NotionSettings").Get<NotionSettings>();
+                var redisSettings = builder.Configuration.GetSection("RedisSettings").Get<RedisSettings>();
 
                 services.AddDbContext<AppDbContext>(options =>
                     options.UseNpgsql($"Host={postgressSettings.Host};Database={postgressSettings.Database};Username={postgressSettings.Username};Password={postgressSettings.Password}"));
@@ -51,6 +55,9 @@ class Program
                 var commandTypes = Assembly.GetExecutingAssembly()
                     .GetTypes()
                     .Where(t => t.IsSubclassOf(typeof(BaseCommand)) && !t.IsAbstract);
+
+                var redis = ConnectionMultiplexer.Connect(redisSettings.ConnectionString);
+                
 
                 foreach (var type in commandTypes)
                 {
@@ -63,9 +70,12 @@ class Program
                 services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(telegramSettings.BotToken));
                 services.AddScoped<ITinkoffService, TinkoffService>();
                 services.AddScoped<ICurrencyService, CurrencyService>();
+                services.AddScoped<ICommandExecutor, CommandExecutor>();
                 services.AddScoped<ICommandService, CommandService>();
                 services.AddScoped<IMessageHandler, MessageHandler>();
-                services.AddScoped<IUserStateService, UserStateService>();
+                services.AddSingleton<IConnectionMultiplexer>(redis);
+                services.AddSingleton<IRedisService, RedisService>();
+                services.AddSingleton<IUserStateService, UserStateService>();
                 services.AddScoped<UpdateHandler>();
 
                 services.AddHostedService<BotHostedService>();

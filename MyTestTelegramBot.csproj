@@ -22,6 +22,7 @@
         <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.1" />
         <PackageReference Include="Notion.Net" Version="4.3.0" />
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
+        <PackageReference Include="StackExchange.Redis" Version="2.9.32" />
         <PackageReference Include="Telegram.Bot" Version="22.5.1" />
         <PackageReference Include="Tinkoff.InvestApi" Version="0.6.16" />
     </ItemGroup>

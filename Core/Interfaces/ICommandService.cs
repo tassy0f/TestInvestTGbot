@@ -12,6 +12,6 @@ namespace MyTestTelegramBot.Core.Interfaces
     {
         Task ExecuteCommandAsync(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken);
         //Task ExecuteCallbackAsync(ITelegramBotClient botClient, CallbackQuery callbackQuery, CancellationToken cancellationToken);
-        Task SetCommandsAsync(ITelegramBotClient botClient, CancellationToken cancellationToken);
+        //Task SetCommandsAsync(ITelegramBotClient botClient, CancellationToken cancellationToken);
     }
 }

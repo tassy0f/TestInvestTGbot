@@ -11,11 +11,13 @@ public class HandleVoiceMessageForNotionCommand : BaseCommand
 {
     private readonly IUserStateService _stateService;
     private readonly INotionService _notionService;
+    private readonly IRedisService _redisService;
 
-    public HandleVoiceMessageForNotionCommand(IUserStateService stateService, INotionService notionService)
+    public HandleVoiceMessageForNotionCommand(IUserStateService stateService, INotionService notionService, IRedisService redisService)
     {
         _stateService = stateService;
         _notionService = notionService;
+        _redisService = redisService;
     }
 
     public override string Name => "/handlevoicemessagefornotion";
@@ -54,6 +56,7 @@ public class HandleVoiceMessageForNotionCommand : BaseCommand
         Console.WriteLine(recognizedText);
 
         var notionModelTask = _notionService.ParseStringToNotionModel(recognizedText);
+        await _redisService.SetNotionTaskAsync(chatId, notionModelTask);
 
         var askText = $"""
             <b>Проверьте, верна ли запись?</b>

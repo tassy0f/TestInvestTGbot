@@ -10,11 +10,13 @@ public class AddGoodNotionTaskCommand : BaseCommand
 {
     private readonly IUserStateService _stateService;
     private readonly INotionService _notionService;
+    private readonly IRedisService _redisService;
 
-    public AddGoodNotionTaskCommand(IUserStateService stateService, INotionService notionService)
+    public AddGoodNotionTaskCommand(IUserStateService stateService, INotionService notionService, IRedisService redisService)
     {
         _stateService = stateService;
         _notionService = notionService;
+        _redisService = redisService;
     }
 
     public override string Name => "/notionaddtaskgood";
@@ -24,22 +26,36 @@ public class AddGoodNotionTaskCommand : BaseCommand
 
     public override async Task ExecuteAsync(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
     {
-        var isSucsess = await _notionService.AddInternalNotionTask();
+        var chatId = message.Chat.Id;
+
+        var model = await _redisService.GetNotionTaskAsync(chatId);
+
+        if (model == null) 
+        {
+            await botClient.SendMessage(
+                chatId: chatId,
+                text: "В редиссе не нашлось сохраненного кеша задачи"
+            );
+            return;
+        }
+
+        var isSucsess = await _notionService.AddInternalNotionTask(model);
         if (isSucsess)
         {
             await botClient.SendMessage(
-                chatId: message.Chat.Id,
-                text: "Задача сохраненно"
+                chatId: chatId,
+                text: "Задача сохранена"
             );
+            await _redisService.ClearNotionTaskAsync(chatId);
         }
         else
         {
             await botClient.SendMessage(
-                chatId: message.Chat.Id,
+                chatId: chatId,
                 text: "Возникли проблемы с сохранением"
             );
         }
 
-        await _stateService.ClearUserStateAsync(message.Chat.Id);
+        await _stateService.ClearUserStateAsync(chatId);
     }
 }

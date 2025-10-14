@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using MyTestTelegramBot.Commands;
-using MyTestTelegramBot.Core.Interfaces;
+﻿using MyTestTelegramBot.Core.Interfaces;
 using Telegram.Bot.Types;
 using Telegram.Bot;
 
@@ -8,42 +6,27 @@ namespace MyTestTelegramBot.Core.Services
 {
     public class CommandService : ICommandService
     {
-        private readonly IEnumerable<BaseCommand> _commands;
-        private readonly ILogger<CommandService> _logger;
-        private readonly IUserStateService _userStateService;
+        private readonly ICommandExecutor _commandExecutor;
 
-        public CommandService(IEnumerable<BaseCommand> commands, ILogger<CommandService> logger, IUserStateService userStateService)
+        public CommandService(
+            ICommandExecutor commandExecutor)
         {
-            _commands = commands;
-            _logger = logger;
-            _userStateService = userStateService;
+            _commandExecutor = commandExecutor;
         }
 
-        public async Task ExecuteCommandAsync(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
+        public Task ExecuteCommandAsync(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
         {
-            foreach (var command in _commands)
-            {
-                if (await command.CanExecute(message, _userStateService))
-                {
-                    await command.ExecuteAsync(botClient, message, cancellationToken);
-                    return;
-                }
-            }
-
-            await botClient.SendMessage(
-                chatId: message.Chat.Id,
-                text: "Команда не распознана",
-                cancellationToken: cancellationToken);
+            return _commandExecutor.ExecuteCommandAsync(botClient, message, cancellationToken);
         }
 
-        public async Task SetCommandsAsync(ITelegramBotClient botClient, CancellationToken cancellationToken)
-        {
-            var botCommands = _commands
-                .Where(c => c.IsVisible)
-                .Select(c => new BotCommand { Command = c.Name.Trim('/'), Description = c.Description })
-                .ToArray();
+        //public async Task SetCommandsAsync(ITelegramBotClient botClient, CancellationToken cancellationToken)
+        //{
+        //    var botCommands = _commands
+        //        .Where(c => c.IsVisible)
+        //        .Select(c => new BotCommand { Command = c.Name.Trim('/'), Description = c.Description })
+        //        .ToArray();
 
-            //await botClient.SetMyCommandsAsync(botCommands, cancellationToken: cancellationToken);
-        }
+        //    //await botClient.SetMyCommandsAsync(botCommands, cancellationToken: cancellationToken);
+        //}
     }
 }

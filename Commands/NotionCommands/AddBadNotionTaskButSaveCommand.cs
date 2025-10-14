@@ -2,6 +2,7 @@
 using MyTestTelegramBot.Core.Interfaces;
 using Telegram.Bot.Types;
 using Telegram.Bot;
+using MyTestTelegramBot.Core.Services;
 
 namespace MyTestTelegramBot.Commands.NotionCommands;
 
@@ -9,13 +10,16 @@ public class AddBadNotionTaskButSaveCommand : BaseCommand
 {
     private readonly IUserStateService _stateService;
     private readonly INotionService _notionService;
-    private readonly ICommandService _commandService;
+    private readonly ICommandExecutor _commandExecutor;
 
-    public AddBadNotionTaskButSaveCommand(IUserStateService stateService, INotionService notionService, ICommandService commandService)
+    public AddBadNotionTaskButSaveCommand(
+        IUserStateService stateService,
+        INotionService notionService,
+        ICommandExecutor commandExecutor)
     {
         _stateService = stateService;
         _notionService = notionService;
-        _commandService = commandService;
+        _commandExecutor = commandExecutor;
     }
 
     public override string Name => "/notionaddtaskbadbutsave";
@@ -30,7 +34,7 @@ public class AddBadNotionTaskButSaveCommand : BaseCommand
             text: "Начинаем процесс сохранения записи",
             cancellationToken: cancellationToken);
 
-        var anotherMessage = new Message
+        var saveTaskMessage = new Message
         {
             From = message.From,
             Chat = message.Chat,
@@ -38,8 +42,15 @@ public class AddBadNotionTaskButSaveCommand : BaseCommand
             Date = DateTime.UtcNow
         };
 
-        await _commandService.ExecuteCommandAsync(botClient, anotherMessage, cancellationToken);
+        var requestTaskMessage = new Message
+        {
+            From = message.From,
+            Chat = message.Chat,
+            Text = "/notionaddtaskbad",
+            Date = DateTime.UtcNow
+        };
 
-        await _stateService.SetUserStateAsync(message.Chat.Id, StateEnum.WaitingForNotionAudio);
+        await _commandExecutor.ExecuteCommandAsync(botClient, saveTaskMessage, cancellationToken);
+        await _commandExecutor.ExecuteCommandAsync(botClient, requestTaskMessage, cancellationToken);
     }
 }

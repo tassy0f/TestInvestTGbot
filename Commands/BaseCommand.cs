@@ -22,6 +22,11 @@ public abstract class BaseCommand
             return message.Text?.StartsWith(Name) == true;
 
         var userState = await stateService.GetUserStateAsync(message.From.Id);
+        if (message.Text != null)
+        {
+            return message.Text?.StartsWith(Name) == true && RequiredStates.Contains(userState.CurrentState);
+        }
+        
         return RequiredStates.Contains(userState.CurrentState);
     }
 }

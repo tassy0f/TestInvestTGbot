@@ -8,6 +8,7 @@ namespace MyTestTelegramBot.Core.Services;
 public class UserStateService : IUserStateService
 {
     private readonly Dictionary<long, UserState> _userStates = new();
+    private readonly Dictionary<long, UserState> _notionTaskState = new();
     private readonly ILogger<UserStateService> _logger;
 
     public UserStateService(ILogger<UserStateService> logger)
