@@ -7,6 +7,8 @@ namespace MyTestTelegramBot.Data.Repository
     {
         public DbSet<User> Users { get; set; }
         public DbSet<SteamHistoryDataItem> SteamHistoryData { get; set; }
+        public DbSet<NotionCategoryStats> NotionCategoryStats { get; set; }
+
 
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
@@ -17,6 +19,16 @@ namespace MyTestTelegramBot.Data.Repository
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.ChatId)
                 .IsUnique();
+        }
+
+        public AppDbContext() { }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            if (!optionsBuilder.IsConfigured)
+            {
+                optionsBuilder.UseNpgsql("Host=localhost;Database=InvestTelegramBotDB;Username=postgres;Password=root1");
+            }
         }
     }
 }

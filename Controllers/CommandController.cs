@@ -58,9 +58,6 @@ public class CommandController
             //case "/eurocourse":
             //    await SendCurrencyRate(message.Chat.Id, "EUR");
             //    break;
-            case "/addnotiontask":
-                await AddNotionTask(message.Chat.Id);
-                break;
             case "/avgyearusdcourseforthisyear":
                 await _botClient.SendPoll(
                     message.Chat.Id,
@@ -212,25 +209,6 @@ public class CommandController
             parseMode: ParseMode.Html,
             replyMarkup: keyboard);
     }
-
-    #region Notion
-
-    private async Task AddNotionTask(long chatId)
-    {
-        _awaitingTicker[chatId] = "notionVoice";
-        var dbId = "9a0ebbb0bbe340cc8848773bfa61dfca"; // https://www.notion.so/9a0ebbb0bbe340cc8848773bfa61dfca?v=d6a27963f83f4d83b158a53bc1a9fdbe 
-        // Добавить вот тут на выбор две кнопки в которых будет храниться ДбАйди заметки - айдишник, ежедневник - айдищник
-        await _notion.AddTaskAsync(
-            dbId,
-            "Сделать ревью PR",
-            DateTime.Today.AddDays(1),
-            "Не забыть проверить юнит-тесты"
-        );
-
-        await _botClient.SendMessage(chatId, "✅ Задача добавлена в Notion!");
-    }
-
-    #endregion
 
     #region Valute
 

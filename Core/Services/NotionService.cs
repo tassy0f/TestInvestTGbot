@@ -68,15 +68,88 @@ public class NotionService : INotionService
         return result != null ? true : false;
     }
 
+    //public NotionTaskModel ParseStringToNotionModel(string text)
+    //{
+    //    var model = new NotionTaskModel
+    //    {
+    //        Category = ExtractValue(text, @"Категори(?:я|и)[\s:,.]*([\p{L}\d\s\-]+?)(?=,?\s*(Заголов|Дата|Описан|$))"),
+    //        Title = ExtractValue(text, @"Заголов(?:ок|ка)[\s:,.]*([\p{L}\d\s\-]+?)(?=,?\s*(Категори|Дата|Описан|$))"),
+    //        Date = ParseDate(ExtractValue(text, @"Дата[\s:,.]*([\p{L}\d\s\-]+?)(?=,?\s*(Категори|Заголов|Описан|$))")),
+    //        Description = ExtractValue(text, @"Описан(?:ие|ия)[\s:,.]*([\p{L}\d\s\-]+?)(?=,?\s*(Категори|Дата|Заголов|$))")
+    //    };
+    //    return model;
+    //}
+
     public NotionTaskModel ParseStringToNotionModel(string text)
     {
+        if (string.IsNullOrWhiteSpace(text))
+            return new NotionTaskModel();
+
+        // Нормализуем пробелы и перевод строки в пробелы
+        text = Regex.Replace(text, @"\s+", " ").Trim();
+
+        // Паттерн для поиска ключевых слов (поддерживаем простые вариации)
+        var pattern = @"\b(Категори(?:я|и)?|Заголов(?:ок|ка)?|Дата|Описан(?:ие|ия)?)\b";
+        var matches = Regex.Matches(text, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        // Если ключевые слова вообще не найдены - попытаемся распарсить простым способом
+        if (matches.Count == 0)
+        {
+            // попробуем распарсить весь текст как заголовок/описание по запятой
+            var parts = text.Split(new[] { ',' }, 2);
+            return new NotionTaskModel
+            {
+                Category = string.Empty,
+                Title = parts.Length > 0 ? parts[0].Trim() : string.Empty,
+                Date = DateTime.Today,
+                Description = parts.Length > 1 ? parts[1].Trim() : string.Empty
+            };
+        }
+
+        // Соберём словарь: нормализованное имя ключа -> значение (текст между ключами)
+        var extracted = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        for (int i = 0; i < matches.Count; i++)
+        {
+            var m = matches[i];
+            int valueStart = m.Index + m.Length;
+            int valueEnd = (i + 1 < matches.Count) ? matches[i + 1].Index : text.Length;
+
+            var raw = text.Substring(valueStart, valueEnd - valueStart).Trim();
+
+            // Обрезаем ведущие/хвостовые разделители (запятые, точки, двоеточия и пробелы)
+            raw = raw.Trim().TrimStart(',', ':', '.', ' ').TrimEnd(',', ':', '.', ' ');
+
+            // Нормализуем ключ (категория/заголовок/дата/описание)
+            var key = NormalizeKey(m.Value);
+
+            // Если несколько совпадений одного ключа — объединяем через пробел
+            if (extracted.ContainsKey(key))
+                extracted[key] = (extracted[key] + " " + raw).Trim();
+            else
+                extracted[key] = raw;
+        }
+
         var model = new NotionTaskModel
         {
-            Title = ExtractValue(text, @"Заголовок\.?\s*(.*?)(?=Дата|Описание|$)"),
-            Date = ParseDate(ExtractValue(text, @"Дата\.?\s*(.*?)(?=Описание|Заголовок|$)")),
-            Description = ExtractValue(text, @"Описание\.?\s*(.*?)(?=Дата|Заголовок|$)")
+            Category = extracted.TryGetValue("category", out var cat) ? cat : string.Empty,
+            Title = extracted.TryGetValue("title", out var t) ? t : string.Empty,
+            Date = ParseDate(extracted.TryGetValue("date", out var d) ? d : string.Empty),
+            Description = extracted.TryGetValue("description", out var desc) ? desc : string.Empty
         };
+
         return model;
+    }
+
+    private static string NormalizeKey(string rawKey)
+    {
+        rawKey = rawKey?.Trim().ToLowerInvariant() ?? string.Empty;
+
+        if (rawKey.StartsWith("категор")) return "category";
+        if (rawKey.StartsWith("заголов")) return "title";
+        if (rawKey.StartsWith("дата")) return "date";
+        if (rawKey.StartsWith("описан")) return "description";
+        return rawKey;
     }
 
     private string ExtractValue(string input, string pattern)
@@ -141,8 +214,8 @@ public class NotionService : INotionService
 
             // если дата уже прошла — переносим на следующий год
             var dateCandidate = new DateTime(year, month, day);
-            if (dateCandidate < DateTime.Today)
-                dateCandidate = dateCandidate.AddYears(1);
+            //if (dateCandidate < DateTime.Today)
+            //    dateCandidate = dateCandidate.AddYears(1);
 
             return dateCandidate;
         }
