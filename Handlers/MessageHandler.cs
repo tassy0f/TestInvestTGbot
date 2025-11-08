@@ -1,13 +1,6 @@
 ﻿using MyTestTelegramBot.Core.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Telegram.Bot.Types;
 using Telegram.Bot;
-using Tinkoff.InvestApi.V1;
-using MyTestTelegramBot.Controllers;
 using MyTestTelegramBot.Data.Repository;
 using Microsoft.EntityFrameworkCore;
 using User = MyTestTelegramBot.Data.Entities.User;
@@ -81,6 +74,10 @@ namespace MyTestTelegramBot.Handlers
                 }
             }
             else if (message.Voice is { } voice)
+            {
+                await _commandService.ExecuteCommandAsync(botClient, message, cancellationToken);
+            }
+            else if (message.Poll is { } pollAnswer)
             {
                 await _commandService.ExecuteCommandAsync(botClient, message, cancellationToken);
             }
