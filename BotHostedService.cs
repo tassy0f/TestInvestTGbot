@@ -21,7 +21,7 @@ public class BotHostedService : IHostedService
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        await _botClient.DeleteWebhook(cancellationToken: _cts.Token);
+         await _botClient.DeleteWebhook(cancellationToken: _cts.Token);
 
         _botClient.StartReceiving(
             updateHandler: _updateHandler.HandleUpdateAsync,

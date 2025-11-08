@@ -1,10 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static Telegram.Bot.TelegramBotClient;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types;
 using Telegram.Bot;
@@ -15,15 +9,18 @@ namespace MyTestTelegramBot.Handlers
     public class UpdateHandler
     {
         private readonly ICommandService _commandService;
+        private readonly ICurrencyService _currencyService;
         private readonly IMessageHandler _messageHandler;
         private readonly ILogger<UpdateHandler> _logger;
 
         public UpdateHandler(
             ICommandService commandService,
+            ICurrencyService currencyService,
             IMessageHandler messageHandler,
             ILogger<UpdateHandler> logger)
         {
             _commandService = commandService;
+            _currencyService = currencyService;
             _messageHandler = messageHandler;
             _logger = logger;
         }
@@ -36,6 +33,7 @@ namespace MyTestTelegramBot.Handlers
                 {
                     UpdateType.Message => _messageHandler.HandleMessageAsync(botClient, update.Message!, cancellationToken),
                     UpdateType.CallbackQuery => HandleCallbackQueryAsync(botClient, update.CallbackQuery!, cancellationToken),
+                    UpdateType.PollAnswer => HandlePollAnswerAsync(botClient, update.PollAnswer!, cancellationToken),
                     _ => Task.CompletedTask // add poll
                 };
 
@@ -44,6 +42,77 @@ namespace MyTestTelegramBot.Handlers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error handling update");
+            }
+        }
+
+        private async Task HandlePollAnswerAsync(ITelegramBotClient botClient, PollAnswer pollAnswer, CancellationToken cancellationToken)
+        {
+            if (pollAnswer.User != null)
+            {
+                int year = pollAnswer.OptionIds[0] switch
+                {
+                    0 => 1,
+                    1 => 2025,
+                    2 => 2024,
+                    3 => 2023,
+                    4 => 2022,
+                    5 => 2021,
+                    6 => 2020,
+                    _ => DateTime.Now.Year
+                };
+                if (year == 1)
+                {
+                    try
+                    {
+                        var currentYear = DateTime.Now.Year;
+                        var rates = new List<(int Year, decimal Rate)>();
+
+                        // Получаем данные за последние 10 лет асинхронно
+                        var tasks = Enumerable.Range(currentYear - 9, 10)
+                            .Select(async year =>
+                            {
+                                var rate = await _currencyService.GetAverageUsdRateForYearAsync(year);
+                                return (Year: year, Rate: rate);
+                            })
+                            .ToList();
+
+                        await Task.WhenAll(tasks);
+                        rates = tasks.Select(t => t.Result).ToList();
+
+                        // Формируем красивую таблицу
+                        var response = "📊 <b>Средние курсы USD за 10 лет</b>\n\n";
+                        response += "<pre>";
+                        response += "| Год   | Курс (RUB)  |\n";
+                        response += "|-------|-------------|\n";
+
+                        foreach (var item in rates.OrderByDescending(x => x.Year))
+                        {
+                            response += $"| {item.Year} | {item.Rate,10:N2} |\n";
+                        }
+
+                        response += "</pre>";
+                        response += "\n<i>Данные предоставлены ЦБ РФ</i>";
+
+                        await botClient.SendMessage(
+                            pollAnswer.User.Id,
+                            response,
+                            parseMode: ParseMode.Html);
+                    }
+                    catch (Exception ex)
+                    {
+                        await botClient.SendMessage(
+                            pollAnswer.User.Id,
+                            $"⚠️ Ошибка при получении данных: {ex.Message}");
+                    }
+                }
+                else
+                {
+                    var averageRate = await _currencyService.GetAverageUsdRateForYearAsync(year);
+                    await botClient.SendMessage(
+                        pollAnswer.User.Id,
+                        $"📊 Средний курс USD за {year} год: {averageRate:F2} RUB",
+                        parseMode: ParseMode.Html);
+                }
             }
         }
 
