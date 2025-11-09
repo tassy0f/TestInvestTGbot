@@ -402,3 +402,11 @@ FodyWeavers.xsd
 
 # Appsettings
 appsettings.Development.json
+
+#env
+.env
+.env.prod
+
+# .dockerignore
+Dockerfile*
+docker-compose*
